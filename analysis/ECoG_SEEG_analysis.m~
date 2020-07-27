@@ -21,7 +21,7 @@
 %% Set up workspace and define paired patient data
 
 clear all
-
+         
 base_path = '/Users/jbernabei/Documents/PhD_Research/ecog_seeg/ecog_vs_seeg';
 iEEG_atlas_path = '/Users/jbernabei/Documents/PhD_Research/atlas_project/iEEG_atlas';
 

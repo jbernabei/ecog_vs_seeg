@@ -61,18 +61,10 @@ h4 = openfig('output/supplemental_figures/plot4.fig','reuse');
 [ecog_distances_all, ecog_distances_pt] = compute_interelectrode_distances({ecog_patients.coords});
 [seeg_distances_all, seeg_distances_pt] = compute_interelectrode_distances({seeg_patients.coords});
 
-figure(2);clf
-subplot(1,2,1)
-histogram(ecog_distances_all)
-subplot(1,2,2)
-histogram(seeg_distances_all)
-
 %% 2C. Connectivity analysis
 
 % histogram of raw values / edge variability for each node -> lets do HG
 % break down each histogram / bar by region (intra ROI / inter ROI)
-
-
 
 %% 3A. Small worldness (or other global metric)
 
