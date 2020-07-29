@@ -1,4 +1,4 @@
-function rank_anatomical_targets(patientID, patient_roi, laterality, atlas_inds, atlas_locs, implant_type, target_type, plot_name)
+function [top_regions, plot_data] = rank_anatomical_targets(patientID, patient_roi, laterality, atlas_inds, atlas_locs, implant_type, target_type, plot_name)
     num_patients = length(patientID)
     
     for pt = 1:num_patients
@@ -45,6 +45,9 @@ function rank_anatomical_targets(patientID, patient_roi, laterality, atlas_inds,
     for pt = 1:num_patients
         all_roi = [all_roi; all_processed_roi(pt).data'];
     end
+    
+    num_n_a = find(strcmp(all_roi,'n/a'));
+    all_roi(num_n_a) = [];
 
     unique_regions = unique(all_roi);
 
@@ -55,15 +58,15 @@ function rank_anatomical_targets(patientID, patient_roi, laterality, atlas_inds,
     % Now find top 15 for ECoG
     [b1, i1] = sort(freq_region,'descend');
     top_regions = unique_regions(i1(1:15));
+    plot_data = b1(1:15);
     
-    clf
-    histogram_plot = bar(b1(1:15));
-    title(sprintf('Anatomical distribution of %s %s patients',implant_type,target_type));
-    set(gca,'xtick',(1:15),'xticklabel',top_regions);
-    xtickangle(45);
-    
-    saveas(gcf,sprintf('output/supplemental_figures/%s',plot_name));
-    close(gcf);
+%     histogram_plot = bar(b1(1:15));
+%     title(sprintf('Anatomical distribution of %s %s patients',implant_type,target_type));
+%     set(gca,'xtick',(1:15),'xticklabel',top_regions);
+%     xtickangle(45);
+%     
+%     saveas(gcf,sprintf('output/supplemental_figures/%s',plot_name));
+%     close(gcf);
 
 end
     

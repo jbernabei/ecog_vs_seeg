@@ -8,9 +8,11 @@ function [connectivity_all, connectivity_pt] = analyze_connectivity(adj_matrices
         patient_adj = adj_matrices{pt}(f).data;
         connectivity_pt{pt}.data(:,f) = patient_adj(:);
         end
+        
+        connectivity_all = [connectivity_all; connectivity_pt{pt}.data];
     end
     
-    connectivity_all = [connectivity_all; connectivity_pt{pt}.data];
     
-    connectivity_all(find(connectivity_all==0)) = [];
+    
+    %connectivity_all(find(connectivity_all==0)) = [];
 end
