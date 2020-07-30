@@ -1,9 +1,13 @@
-function [top_regions, plot_data] = rank_anatomical_targets(patientID, patient_roi, laterality, atlas_inds, atlas_locs, implant_type, target_type, plot_name)
-    num_patients = length(patientID)
+function [top_regions, plot_data, total_elecs] = rank_anatomical_targets(patientID, patient_roi, laterality, atlas_inds, atlas_locs, implant_type, target_type, plot_name)
     
+    % get number of patients
+    num_patients = length(patientID);
+    
+    % loop through each patient
     for pt = 1:num_patients
         
-        [I,J] = find(atlas_inds==patient_roi{1});
+        % 
+        [I,J] = find(atlas_inds==patient_roi{pt});
         patient_regions = {atlas_locs{I}}';
     
         if strcmp(laterality{pt},'R')
@@ -16,7 +20,7 @@ function [top_regions, plot_data] = rank_anatomical_targets(patientID, patient_r
      
         %
         for r = 1:length(patient_regions)
-            processed_roi = 'n/a'
+            processed_roi = 'n/a';
 
             roi_name = patient_regions{r};
 
@@ -59,6 +63,8 @@ function [top_regions, plot_data] = rank_anatomical_targets(patientID, patient_r
     [b1, i1] = sort(freq_region,'descend');
     top_regions = unique_regions(i1(1:15));
     plot_data = b1(1:15);
+    
+    total_elecs = sum(b1);
     
 %     histogram_plot = bar(b1(1:15));
 %     title(sprintf('Anatomical distribution of %s %s patients',implant_type,target_type));
