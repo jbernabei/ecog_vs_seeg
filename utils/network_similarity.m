@@ -1,9 +1,11 @@
-function [pt_purity] = network_similarity(network_modules, mni_coordinates, comparison_type)
+function [pt_purity, all_purity] = network_similarity(network_modules, mni_coordinates, comparison_type)
     
     % get number of patients
     num_patients = length(mni_coordinates);
     
     for pt = 1:num_patients
+        
+        clear purity_index
         
         % extract coordinates
         mni_coords = mni_coordinates{pt};
@@ -29,9 +31,10 @@ function [pt_purity] = network_similarity(network_modules, mni_coordinates, comp
                 for m = 1:length(unique(this_freq_module))
                     ind_vec_mod(pt).patient(f).data(m,:) = double([this_freq_module==m]);
                     
+                    JI_val = 1-pdist([ind_vec_sys(pt).data(s,:); ind_vec_mod(pt).patient(f).data(m,:)],'jaccard');
+                    
                     % calculating jaccard index
-                    JI(pt).data(s,m,f) = 1-pdist([ind_vec_sys(pt).data(s,:); ind_vec_mod(pt).patient(f).data(m,:)],'jaccard');
-                 
+                    JI(pt).data(s,m,f) = JI_val;
                 end
 
             end
@@ -53,11 +56,13 @@ function [pt_purity] = network_similarity(network_modules, mni_coordinates, comp
             this_freq_module = pt_modules(:,f);
             for m = 1:length(unique(this_freq_module))
                 p = squeeze(JI(pt).data(:,m,f)./sum(JI(pt).data(:,m,f)));
-                purity_index(m,f) = -sum(p.*log2(p));
+                purity_index(m,f) = max(p);
             end
         end
       
         pt_purity{pt} = purity_index;
+        
+        all_purity(pt,:) = mean(purity_index);
         
     end
     

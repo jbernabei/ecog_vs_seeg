@@ -1,4 +1,4 @@
-function [pt_modules, pt_q_vals, pt_pc] = compute_modularity(adj_matrices)
+function [pt_modules, pt_q_vals, pt_pc, pc_all] = compute_modularity(adj_matrices)
    
     % get number of patients
     num_patients = length(adj_matrices);
@@ -21,6 +21,9 @@ function [pt_modules, pt_q_vals, pt_pc] = compute_modularity(adj_matrices)
             
             % calculate nodal participation coefficient
             pt_pc{pt}.data(:,f)=participation_coef(patient_adj,S);
+            
+            pc_all(pt,f) = mean(pt_pc{pt}.data(:,f));
+            
         end
         
     end

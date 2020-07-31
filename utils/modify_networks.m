@@ -82,14 +82,16 @@ function [new_data] = modify_networks(adj_matrices, mni_coordinates, patient_roi
                 for j = 1:length(unique_roi)
 
                     % find second set of nodes
-                    nodes_2 = find(strcmp(patient_roi{pt}, unique_roi(j)));
+                    nodes_2 = find(patient_roi{pt}==unique_roi(j));
 
                     % find second set of centroidss
                     centroid_2 = mean(mni_coordinates{pt}(nodes_2,:),1);
                     if i==j
                     else
                         for f = 1:5
-                            reduced_adj(f).data(i,j) = mean(mean(adj_matrices{pt}(f).data(nodes_1,nodes_2)));
+                            this_adj = adj_matrices{pt}(f).data;
+                            placeholder = nanmean(nanmean(this_adj(nodes_1,nodes_2)));
+                            reduced_adj(f).data(i,j) = placeholder;
                         end 
                     end
                 end
@@ -107,7 +109,6 @@ function [new_data] = modify_networks(adj_matrices, mni_coordinates, patient_roi
             
             % need new res_elecs
             new_data(pt).resect = resect_region(pt).data;
-            
         end
         
     end
