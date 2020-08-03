@@ -10,6 +10,9 @@ iEEG_atlas_path = '/Users/jbernabei/Documents/PhD_Research/atlas_project/iEEG_at
 % set up colors
 color1 = [0, 0.4470, 0.7410];
 color2 = [0.6350, 0.0780, 0.1840];
+color3 = [255, 248, 209]./255;  
+
+my_colormap = make_colormap(color1,color3,color2);
 
 %% 1. Patient-specific base network renderings
 
@@ -96,6 +99,8 @@ m2 = mean(seeg_distances_all)
 s1 = skewness(ecog_distances_all)
 s2 = skewness(seeg_distances_all)
 
+ranksum(ecog_distances_all,seeg_distances_all)
+
 figure(3);clf;
 hold on
 histogram(ecog_distances_all,'Normalization','probability','FaceColor',color1)
@@ -127,6 +132,25 @@ hold on
 histogram(seeg_conn_all(:,3),'Normalization','probability','FaceColor', color2)
 histogram(ecog_conn_all(:,3),'Normalization','probability','FaceColor', color1)
 xlim([0.1,0.6])
+title('Beta coherence edge weight distribution')
+ylabel('Frequency')
+legend('SEEG','ECoG','Location','NorthEast')
+
+m1 = mean(seeg_conn_all(:,1))
+m2 = mean(ecog_conn_all(:,1))
+
+[p,h,stats] = ranksum(ecog_conn_all(:,1),seeg_conn_all(:,1))
+
+m3 = mean(seeg_conn_all(:,3))
+m4 = mean(ecog_conn_all(:,3))
+
+[p,h,stats] = ranksum(ecog_conn_all(:,3),seeg_conn_all(:,3))
+
+figure(1);clf;
+hold on
+histogram(seeg_conn_all(:,3),'Normalization','probability','FaceColor', color2)
+histogram(ecog_conn_all(:,3),'Normalization','probability','FaceColor', color1)
+xlim([0.1,0.4])
 title('Beta coherence edge weight distribution')
 ylabel('Frequency')
 legend('SEEG','ECoG','Location','NorthEast')
@@ -191,16 +215,22 @@ signrank(sw_value_seeg(:,1),sw_value_seeg(:,3))
 [ecog_pt_modules, ecog_pt_q_vals, ecog_pt_pc, ecog_pc_all] = compute_modularity({ecog_patients.conn});
 [seeg_pt_modules, seeg_pt_q_vals, seeg_pt_pc, seeg_pc_all] = compute_modularity({seeg_patients.conn});
 
-
-boxplot([[ecog_pc_all(:,1);NaN],seeg_pc_all(:,1),[ecog_pc_all(:,3);NaN],...
+figure(1);clf
+boxplot([[ecog_pc_all(:,3);NaN],...
     seeg_pc_all(:,3)])
-set(gca,'xtick',(1.5:2:3.5),'xticklabel',{'Broadband CC','Beta'});
+%set(gca,'xtick',(1.5:2:3.5),'xticklabel',{'Broadband CC','Beta'});
 h = findobj(gca,'Tag','Box');
-colors = [color2; color1; color2; color1];
+colors = [color2; color1];
 for j=1:length(h)
     patch(get(h(j),'XData'),get(h(j),'YData'),colors(j,:),'FaceAlpha',.5);
 end
-ylim([0 1])
+ylim([0.3 1])
+
+mean(ecog_pc_all(:,1))
+mean(ecog_pc_all(:,3))
+
+mean(seeg_pc_all(:,1))
+mean(seeg_pc_all(:,3))
 
 ranksum(ecog_pc_all(:,1),seeg_pc_all(:,1))
 ranksum(ecog_pc_all(:,3),seeg_pc_all(:,3))
@@ -212,11 +242,11 @@ ranksum(ecog_pc_all(:,3),seeg_pc_all(:,3))
 [SEEG_pt_purity, SEEG_module_purity] = network_similarity(seeg_pt_modules, {seeg_patients.coords}, 'systems');
 
 figure(1);clf
-boxplot([[ECoG_module_purity(:,1);NaN],SEEG_module_purity(:,1),[ECoG_module_purity(:,3);NaN],...
+boxplot([[ECoG_module_purity(:,3);NaN],...
     SEEG_module_purity(:,3)])
-set(gca,'xtick',(1.5:2:3.5),'xticklabel',{'Broadband CC','Beta'});
+%set(gca,'xtick',(1.5:2:3.5),'xticklabel',{'Broadband CC','Beta'});
 h = findobj(gca,'Tag','Box');
-colors = [color2; color1; color2; color1];
+colors = [color2; color1];
 for j=1:length(h)
     patch(get(h(j),'XData'),get(h(j),'YData'),colors(j,:),'FaceAlpha',.5);
 end
@@ -458,23 +488,82 @@ plot_data_3 = [[dice_ecog_str_raw(:,3);NaN], dice_seeg_str_raw(:,3), dice_seeg_s
 
 ranksum(dice_ecog_str_raw(:,3),dice_seeg_str_raw(:,3))
 ranksum(dice_seeg_str_raw(:,3),dice_ecog_str_no_wm(:,3))
+ranksum(dice_seeg_str_no_wm(:,3),dice_ecog_str_min_roi(:,3))
 ranksum(dice_seeg_str_raw(:,3),dice_ecog_str_min_roi(:,3))
+
+ranksum(dice_ecog_str_raw(:,3),dice_seeg_str_min_roi(:,3))
+
+figure(1);clf;
+subplot(1,2,1)
+boxplot(plot_data_1)
+set(gca,'xtick',(1:4),'xticklabel',{'ECoG','SEEG 1','SEEG 2','SEEG 3'});
+ylabel('Dice')
+h = findobj(gca,'Tag','Box');
+colors = [color2; color2; color2; color1];
+for j=1:length(h)
+    patch(get(h(j),'XData'),get(h(j),'YData'),colors(j,:),'FaceAlpha',.5);
+end
+ylim([0 1])
+title('Broadband CC')
+ylim([-0.5 1.5])
+subplot(1,2,2)
+boxplot(plot_data_3)
+set(gca,'xtick',(1:4),'xticklabel',{'ECoG','SEEG 1','SEEG 2','SEEG 3'});
+ylabel('Dice')
+h = findobj(gca,'Tag','Box');
+colors = [color2; color2; color2; color1];
+for j=1:length(h)
+    patch(get(h(j),'XData'),get(h(j),'YData'),colors(j,:),'FaceAlpha',.5);
+end
+ylim([0 1])
+title('Beta coherence')
+ylim([-0.25 1.5])
 
 %% Comparing betweenness centrality localization
 
 % freq 1
-plot_data_1 = [[dice_ecog_btw_raw(:,1);NaN], dice_seeg_btw_raw(:,1), dice_seeg_btw_no_wm(:,1), dice_seeg_btw_min_roi(:,1)]
+plot_data_1 = [[dice_ecog_btw_raw(:,1);NaN], dice_seeg_btw_raw(:,1), dice_seeg_btw_no_wm(:,1), dice_seeg_btw_min_roi(:,1)];
 
 ranksum(dice_ecog_btw_raw(:,1),dice_seeg_btw_raw(:,1))
 ranksum(dice_seeg_btw_raw(:,1),dice_ecog_btw_no_wm(:,1))
 ranksum(dice_seeg_btw_raw(:,1),dice_ecog_btw_min_roi(:,1))
 
 % freq 3
-plot_data_3 = [[dice_ecog_btw_raw(:,3);NaN], dice_seeg_btw_raw(:,3), dice_seeg_btw_no_wm(:,3), dice_seeg_btw_min_roi(:,3)]
+plot_data_3 = [[dice_ecog_btw_raw(:,3);NaN], dice_seeg_btw_raw(:,3), dice_seeg_btw_no_wm(:,3), dice_seeg_btw_min_roi(:,3)];
 
 ranksum(dice_ecog_btw_raw(:,3),dice_seeg_btw_raw(:,3))
 ranksum(dice_seeg_btw_raw(:,3),dice_ecog_btw_no_wm(:,3))
+ranksum(dice_seeg_btw_no_wm(:,3),dice_ecog_btw_min_roi(:,3))
 ranksum(dice_seeg_btw_raw(:,3),dice_ecog_btw_min_roi(:,3))
+
+ranksum(dice_ecog_btw_raw(:,3),dice_seeg_btw_min_roi(:,3))
+ranksum(dice_ecog_btw_raw(:,3),dice_seeg_btw_no_wm(:,3))
+
+figure(1);clf;
+subplot(1,2,1)
+boxplot(plot_data_1)
+set(gca,'xtick',(1:4),'xticklabel',{'ECoG','SEEG 1','SEEG 2','SEEG 3'});
+ylabel('Dice')
+h = findobj(gca,'Tag','Box');
+colors = [color2; color2; color2; color1];
+for j=1:length(h)
+    patch(get(h(j),'XData'),get(h(j),'YData'),colors(j,:),'FaceAlpha',.5);
+end
+ylim([0 1])
+title('Broadband CC')
+ylim([-0.5 1.5])
+subplot(1,2,2)
+boxplot(plot_data_3)
+set(gca,'xtick',(1:4),'xticklabel',{'ECoG','SEEG 1','SEEG 2','SEEG 3'});
+ylabel('Dice')
+h = findobj(gca,'Tag','Box');
+colors = [color2; color2; color2; color1];
+for j=1:length(h)
+    patch(get(h(j),'XData'),get(h(j),'YData'),colors(j,:),'FaceAlpha',.5);
+end
+ylim([0 1])
+title('Beta coherence')
+ylim([-0.25 1.5])
 
 %% Comparing control centrality localization
 
@@ -492,7 +581,53 @@ ranksum(dice_ecog_cc_raw(:,3),dice_seeg_cc_raw(:,3))
 ranksum(dice_seeg_cc_raw(:,3),dice_ecog_cc_no_wm(:,3))
 ranksum(dice_seeg_cc_raw(:,3),dice_ecog_cc_min_roi(:,3))
 
+figure(1);clf;
+subplot(1,2,1)
+boxplot(plot_data_1)
+set(gca,'xtick',(1:4),'xticklabel',{'ECoG','SEEG 1','SEEG 2','SEEG 3'});
+ylabel('Dice')
+h = findobj(gca,'Tag','Box');
+colors = [color2; color2; color2; color1];
+for j=1:length(h)
+    patch(get(h(j),'XData'),get(h(j),'YData'),colors(j,:),'FaceAlpha',.5);
+end
+ylim([0 1])
+title('Broadband CC')
+ylim([-0.5 1.5])
+subplot(1,2,2)
+boxplot(plot_data_3)
+set(gca,'xtick',(1:4),'xticklabel',{'ECoG','SEEG 1','SEEG 2','SEEG 3'});
+ylabel('Dice')
+h = findobj(gca,'Tag','Box');
+colors = [color2; color2; color2; color1];
+for j=1:length(h)
+    patch(get(h(j),'XData'),get(h(j),'YData'),colors(j,:),'FaceAlpha',.5);
+end
+ylim([0 1])
+title('Beta coherence')
+ylim([-0.5 1.5])
+
 %% probably need to do distance correction....
 
 % -> ECoG and SEEG separately -> use non-resected / ablated regions
 
+[curve_ECoG] = compute_distance_regression({min_roi_ecog.conn}, {min_roi_ecog.coords}, {min_roi_ecog.resect});
+[curve_SEEG] = compute_distance_regression({min_roi_seeg.conn}, {min_roi_seeg.coords}, {min_roi_seeg.resect});
+
+x_axis = [1:0.1:200];
+y_ecog = (curve_ECoG(1).data.a.*x_axis.^curve_ECoG(1).data.b)+curve_ECoG(1).data.c;
+y_seeg = (curve_SEEG(1).data.a.*x_axis.^curve_SEEG(1).data.b)+curve_SEEG(1).data.c;
+
+%% visualize adj
+a = {seeg_patients.conn};
+b = {seeg_patients.resect};
+num_pt = length({seeg_patients.conn})
+for i = 1:num_pt
+    num_nodes(i) = size(a{i}(1).data,1)
+    num_resected(i) = length(b{i})
+end
+
+mean(num_nodes)
+std(num_nodes)
+mean(num_resected)
+std(num_resected)
