@@ -1,10 +1,14 @@
-function [distances_all, distances_pt] = compute_interelectrode_distances(mni_coordinates)
+function [distances_all, distances_pt] = compute_interelectrode_distances(mni_coordinates,patient_roi)
     num_patients = length(mni_coordinates);
     
     distances_all = [];
     
     for pt = 1:num_patients
+        
+        patient_WM_inds = find(patient_roi{pt}==9171);
+        
         mni_coords = mni_coordinates{pt};
+        mni_coords(patient_WM_inds,:) = [];
         
         pt_num_elecs = size(mni_coords,1);
         

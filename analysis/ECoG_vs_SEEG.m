@@ -13,6 +13,7 @@ color2 = [0.6350, 0.0780, 0.1840];
 color3 = [255, 248, 209]./255;  
 
 my_colormap = make_colormap(color1,color3,color2);
+lobe_table = readtable('lobes_aal.xlsx')
 
 %% 1. Patient-specific base network renderings
 
@@ -72,6 +73,12 @@ ylabel('Fraction of total electrodes')
 xtickangle(45);
 ylim([0, 0.11])
 
+% for supplement:
+% also make boxplots of:
+% 1: fraction interhemispheric connections
+% 2: fraction interlobal connections
+% 3: fraction intralobal connections
+
 %% 2B. Interelectrode distance comparison
 
 [ecog_distances_all, ecog_distances_pt] = compute_interelectrode_distances({ecog_patients.coords});
@@ -110,6 +117,20 @@ xlabel('Internodal distance (mm)')
 title('ECoG versus SEEG internodal distances')
 legend('ECoG','SEEG','Location','NorthEast')
 hold off
+
+% for supplement
+% also make plots of:
+% boxplots of mean internodal distance
+for i = 1:length(ecog_distances_pt)
+    med_ecog_dists(i) =  nanmedian(ecog_distances_pt{i}(:));
+end
+
+for i = 1:length(seeg_distances_pt)
+    med_seeg_dists(i) =  nanmedian(seeg_distances_pt{i}(:));
+end
+
+p1 = ranksum(med_ecog_dists,med_seeg_dists)
+
 %% 2C. Connectivity analysis
 
 % histogram of raw values / edge variability for each node -> lets do HG
@@ -155,6 +176,20 @@ title('Beta coherence edge weight distribution')
 ylabel('Frequency')
 legend('SEEG','ECoG','Location','NorthEast')
 
+% for supplement
+% also make plots of:
+% boxplots of mean connectivity
+for i = 1:length(ecog_conn_pt)
+    med_ecog_conn(i) =  nanmedian(ecog_conn_pt{i}.data(:,3));
+end
+
+for i = 1:length(seeg_conn_pt)
+    med_seeg_conn(i) =  nanmedian(seeg_conn_pt{i}.data(:,3));
+end
+
+p2 = ranksum(med_ecog_conn,med_seeg_conn)
+figure(2);clf;
+boxplot([[med_ecog_conn';NaN;NaN;NaN],med_seeg_conn'])
 
 %% 3A. Small worldness (or other global metric)
 
@@ -212,11 +247,13 @@ signrank(sw_value_ecog(:,1),sw_value_ecog(:,3))
 signrank(sw_value_seeg(:,1),sw_value_seeg(:,3))
 %% 3B. Modularity analysis -> compute modularity & participation coefficient
 
-[ecog_pt_modules, ecog_pt_q_vals, ecog_pt_pc, ecog_pc_all] = compute_modularity({ecog_patients.conn});
-[seeg_pt_modules, seeg_pt_q_vals, seeg_pt_pc, seeg_pc_all] = compute_modularity({seeg_patients.conn});
+g_val = 1;
+
+[ecog_pt_modules, ecog_pt_q_vals, ecog_pt_pc, ecog_pc_all] = compute_modularity({ecog_patients.conn},g_val);
+[seeg_pt_modules, seeg_pt_q_vals, seeg_pt_pc, seeg_pc_all] = compute_modularity({seeg_patients.conn},g_val);
 
 figure(1);clf
-boxplot([[ecog_pc_all(:,3);NaN],...
+boxplot([[ecog_pc_all(:,3);NaN;NaN;NaN],...
     seeg_pc_all(:,3)])
 %set(gca,'xtick',(1.5:2:3.5),'xticklabel',{'Broadband CC','Beta'});
 h = findobj(gca,'Tag','Box');
@@ -224,7 +261,7 @@ colors = [color2; color1];
 for j=1:length(h)
     patch(get(h(j),'XData'),get(h(j),'YData'),colors(j,:),'FaceAlpha',.5);
 end
-ylim([0.3 1])
+%ylim([0.3 1])
 
 mean(ecog_pc_all(:,1))
 mean(ecog_pc_all(:,3))
@@ -236,28 +273,28 @@ ranksum(ecog_pc_all(:,1),seeg_pc_all(:,1))
 ranksum(ecog_pc_all(:,3),seeg_pc_all(:,3))
 
 %% 3C. Comparison of modules to Yeo systems & own electrode groups
-
-% have to get 'community' labels for electrodes and Yeo systems
-[ECoG_pt_purity, ECoG_module_purity] = network_similarity(ecog_pt_modules, {ecog_patients.coords}, 'systems');
-[SEEG_pt_purity, SEEG_module_purity] = network_similarity(seeg_pt_modules, {seeg_patients.coords}, 'systems');
-
-figure(1);clf
-boxplot([[ECoG_module_purity(:,3);NaN],...
-    SEEG_module_purity(:,3)])
-%set(gca,'xtick',(1.5:2:3.5),'xticklabel',{'Broadband CC','Beta'});
-h = findobj(gca,'Tag','Box');
-colors = [color2; color1];
-for j=1:length(h)
-    patch(get(h(j),'XData'),get(h(j),'YData'),colors(j,:),'FaceAlpha',.5);
-end
-ylim([0 1])
-
-ranksum(ECoG_module_purity(:,1),SEEG_module_purity(:,1))
-ranksum(ECoG_module_purity(:,3),SEEG_module_purity(:,3))
-
-
-signrank(ECoG_module_purity(:,1),ECoG_module_purity(:,3))
-signrank(SEEG_module_purity(:,1),SEEG_module_purity(:,3))
+% 
+% % have to get 'community' labels for electrodes and Yeo systems
+% [ECoG_pt_purity, ECoG_module_purity] = network_similarity(ecog_pt_modules, {ecog_patients.coords}, 'systems');
+% [SEEG_pt_purity, SEEG_module_purity] = network_similarity(seeg_pt_modules, {seeg_patients.coords}, 'systems');
+% 
+% figure(1);clf
+% boxplot([[ECoG_module_purity(:,3);NaN;NaN;NaN],...
+%     SEEG_module_purity(:,3)])
+% %set(gca,'xtick',(1.5:2:3.5),'xticklabel',{'Broadband CC','Beta'});
+% h = findobj(gca,'Tag','Box');
+% colors = [color2; color1];
+% for j=1:length(h)
+%     patch(get(h(j),'XData'),get(h(j),'YData'),colors(j,:),'FaceAlpha',.5);
+% end
+% ylim([0 1])
+% 
+% ranksum(ECoG_module_purity(:,1),SEEG_module_purity(:,1))
+% ranksum(ECoG_module_purity(:,3),SEEG_module_purity(:,3))
+% 
+% 
+% signrank(ECoG_module_purity(:,1),ECoG_module_purity(:,3))
+% signrank(SEEG_module_purity(:,1),SEEG_module_purity(:,3))
 
 %% 4A. Node strength of the SOZ/EZ
 
@@ -368,6 +405,8 @@ ranksum(ecog_cc_non_res(:,3),ecog_cc_res(:,3))
 ranksum(seeg_cc_non_res(:,1),seeg_cc_res(:,1))
 ranksum(seeg_cc_non_res(:,3),seeg_cc_res(:,3))
 
+%% what about participation coef of EZ?
+
 %% 5A. Localization based on top metric -> All nodes -> all three methods
 
 % node strength localization
@@ -401,6 +440,9 @@ set(gca,'xtick',(1:6),'xticklabel',{'ECoG Broadband','SEEG Broadband','ECoG Beta
 ylabel('Dice coefficient')
 title('Localization quality of control centrality across frequency bands')
 ylim([-1 3])
+
+% quantify D_rs instead
+% basically this is AUC of binary classifier
 
 %% 5B. Where do missed localizations go? break down by target type
 
@@ -439,6 +481,9 @@ ylabel('Dice coefficient')
 title('Localization quality of node strength across frequency bands')
 ylim([-1 3])
 
+% quantify D_rs instead
+% basically this is AUC of binary classifier
+
 %% 5D. Localization based on top metric -> ROI reduced
 
 % generate new data
@@ -473,6 +518,9 @@ set(gca,'xtick',(1:6),'xticklabel',{'ECoG Broadband','SEEG Broadband','ECoG Beta
 ylabel('Dice coefficient')
 title('Localization quality of control centrality across frequency bands')
 ylim([-1 3])
+
+% quantify D_rs instead
+% basically this is AUC of binary classifier
 
 %% Comparing node strength localization
 
@@ -518,6 +566,9 @@ end
 ylim([0 1])
 title('Beta coherence')
 ylim([-0.25 1.5])
+
+% quantify D_rs instead
+% basically this is AUC of binary classifier
 
 %% Comparing betweenness centrality localization
 
@@ -565,6 +616,9 @@ ylim([0 1])
 title('Beta coherence')
 ylim([-0.25 1.5])
 
+% quantify D_rs instead
+% basically this is AUC of binary classifier
+
 %% Comparing control centrality localization
 
 % freq 1
@@ -607,6 +661,9 @@ ylim([0 1])
 title('Beta coherence')
 ylim([-0.5 1.5])
 
+% quantify D_rs instead
+% basically this is AUC of binary classifier
+
 %% probably need to do distance correction....
 
 % -> ECoG and SEEG separately -> use non-resected / ablated regions
@@ -631,3 +688,19 @@ mean(num_nodes)
 std(num_nodes)
 mean(num_resected)
 std(num_resected)
+
+%% re-do the localization analysis to focus on D_rs. Eliminate last two 
+% figures and just do a single one 
+
+%logic
+% for each patient
+% have all scores
+% compute ROC
+
+a1 = [1 2 3 4 5];
+a2 = [3 4 5 6 7];
+a3 = [6 7 8 9 10];
+
+% we can use U statistic divided by both sample sizes (normalized)
+
+% need to compare against distance correction

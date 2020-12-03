@@ -46,7 +46,7 @@ function [new_data] = modify_networks(adj_matrices, mni_coordinates, patient_roi
             new_data(pt).coords = new_coords;
             new_data(pt).resect = new_res_elecs;
             new_data(pt).roi = new_roi;
-              
+        
         elseif strcmp(mod_method, 'min_ROI')
             %% get rid of WM and reduce to ROI-level nodes
             clear reduced_adj
