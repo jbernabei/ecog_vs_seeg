@@ -1,11 +1,10 @@
-function [top_regions, plot_data, total_elecs, all_loc_matrix] = rank_anatomical_targets(patientID, patient_roi, laterality, atlas_inds, atlas_locs, implant_type, target_type, lobe_table)
+function [top_regions, plot_data, total_elecs, all_loc_matrix, bilat_score,ipsi_score] = rank_anatomical_targets(patientID, patient_roi, laterality, targets, atlas_inds, atlas_locs, lobe_table)
     
     % get number of patients
     num_patients = length(patientID);
     
     % loop through each patient
     for pt = 1:num_patients
-        pt
         clear loc_table
         clear loc_matrix
         
@@ -13,13 +12,37 @@ function [top_regions, plot_data, total_elecs, all_loc_matrix] = rank_anatomical
         [I,J] = find(atlas_inds==patient_roi{pt});
         patient_regions = {atlas_locs{I}}';
        
-    
+        % correct R/L into ipsilateral / contralateral
         if strcmp(laterality{pt},'R')
             ipsilateral = contains(patient_regions,'_R');
             contralateral = contains(patient_regions,'_L');
         else
             ipsilateral = contains(patient_regions,'_L');
             contralateral = contains(patient_regions,'_R');
+        end
+        
+        if strcmp(targets{pt},'Temporal') && strcmp(laterality{pt},'R')
+            res_region = 1;
+        elseif strcmp(targets{pt},'Temporal') && strcmp(laterality{pt},'L')
+            res_region = 2;
+        elseif strcmp(targets{pt},'Frontal') && strcmp(laterality{pt},'R')
+            res_region = 3;
+        elseif strcmp(targets{pt},'Frontal') && strcmp(laterality{pt},'L')
+            res_region = 4;
+        elseif strcmp(targets{pt},'Parietal') && strcmp(laterality{pt},'R')
+            res_region = 5;
+        elseif strcmp(targets{pt},'Parietal') && strcmp(laterality{pt},'L')
+            res_region = 6;
+        elseif strcmp(targets{pt},'Occipital') && strcmp(laterality{pt},'R')
+            res_region = 7;
+        elseif strcmp(targets{pt},'Occipital') && strcmp(laterality{pt},'L')
+            res_region = 8;
+        elseif strcmp(targets{pt},'Insular') && strcmp(laterality{pt},'R')
+            res_region = 9;
+        elseif strcmp(targets{pt},'Insular') && strcmp(laterality{pt},'L')
+            res_region = 10;
+        else
+            res_region = 0;
         end
      
         %
@@ -75,7 +98,11 @@ function [top_regions, plot_data, total_elecs, all_loc_matrix] = rank_anatomical
             all_processed_roi(pt).data{r} = processed_roi;
 
         end
-        
+       
+        % create a bilaterality score: fraction of nodes contra/ipsilateral
+        num_ipsi = sum(contains(all_processed_roi(pt).data,'ipsilateral'));
+        num_cont = sum(contains(all_processed_roi(pt).data,'contralateral'));
+        bilat_score(pt) = min([num_ipsi,num_cont])./max([num_ipsi,num_cont]);
         
         % check for intralobar, interlobar, interhemispheric
         for r1 = 1:length(patient_regions)
@@ -96,8 +123,19 @@ function [top_regions, plot_data, total_elecs, all_loc_matrix] = rank_anatomical
         end
         
     all_loc_matrix(pt).data = loc_matrix;
+    
+    % create a ipsilateral focality score: fraction of ipsilateral nodes in
+    % lobe with greatest number of resected electrodes
+    ipsi_inds = contains(all_processed_roi(pt).data,'ipsilateral');
+    ipsi_score(pt) = sum(loc_table(ipsi_inds)==res_region)./sum(ipsi_inds);
+    
+    % <or we can just define lobe of primary target>
+    
+    
     end
-
+    
+    
+    
     % Now we have to go through all patients and determine ranked list of ROI
     % overall in ECoG and apply that list to SEEG
     all_roi = [];

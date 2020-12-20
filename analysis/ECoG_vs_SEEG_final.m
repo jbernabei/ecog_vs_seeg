@@ -1,44 +1,64 @@
 clear all
 
+% set base path of the project
 base_path = '/Users/jbernabei/Documents/PhD_Research/ecog_seeg/ecog_vs_seeg';
-%iEEG_atlas_path = '/Users/jbernabei/Documents/PhD_Research/atlas_project/iEEG_atlas';
 
-[all_patients, all_inds, all_locs, conn_field, var_field, coords_field, hasData_field, hasVar_field, id_field,...
-    implant_field, outcome_field, resect_field, roi_field, target_field,...
-    therapy_field, region_list, region_name, lesion_field,...
-    sz_field] = set_up_workspace(base_path);
+% set up workspace of the project by pulling all data and metadata
+[all_patients, all_inds, all_locs, conn_field, coords_field, ...
+    hasData_field, id_field, implant_field, outcome_field, resect_field, ...
+    roi_field, target_field, therapy_field, region_list, region_names] = ...
+    set_up_workspace_ecog_seeg(base_path);
 
 % set up colors
 color1 = [0, 0.4470, 0.7410];
 color2 = [0.6350, 0.0780, 0.1840];
-color3 = [255, 248, 209]./255;  
+color3 = [255, 248, 209]./255; 
+color5 = [103 55 155]/255;
+color6 = [78 172 91]/255;
 
 my_colormap = make_colormap(color1,color3,color2);
+
+% extract information on which lobes the regions of the AAL atlas belong to
 lobe_table = readtable('lobes_aal.xlsx');
 
+% extract the indices of all patients that are ECoG/SEEG respectively
 ecog_patient_indices = find([hasData_field{:}] & strcmp(implant_field,'ECoG'));
 seeg_patient_indices = find([hasData_field{:}] & strcmp(implant_field,'SEEG'));
 
+% extract data into respective structures
 ecog_patients = all_patients(ecog_patient_indices);
 seeg_patients = all_patients(seeg_patient_indices);
 
-%% 2A. Anatomical targets, broken down by implant type and target (Frontal, Temporal, other)
+%% must plot MNI registration for everything and color nodes by resect / non-resect
+% Include this in the supplement
+for pt = 1:length(ecog_patients)
+    adj_matrix = ecog_patients(pt).conn(1).data;
+    res_bin = zeros(length(ecog_patients(pt).roi),1)
+    res_bin(ecog_patients(pt).resect) = 1;
+    final_elec_matrix = [ecog_patients(pt).coords,res_bin,ones(size(ecog_patients(pt).coords,1),1)];
+    dlmwrite('render_elecs.node',final_elec_matrix,'delimiter',' ','precision',5)
+    BrainNet_MapCfg('BrainMesh_ICBM152_smoothed.nv','render_elecs.node','ecog_seeg_render_2.mat',sprintf('output/render/elecs_ident_%s.jpg',ecog_patients(pt).patientID))
+    delete render_elecs.node
+end   
 
-% ecog_temporal_indices = find([hasData_field{:}] & strcmp(outcome_field,'good')...
-%     & strcmp(implant_field,'ECoG') & (strcmp(target_field,'Temporal') | strcmp(target_field,'MTL')));
-% ecog_frontal_indices = find([hasData_field{:}] & strcmp(outcome_field,'good')...
-%     & strcmp(implant_field,'ECoG') & (strcmp(target_field,'Frontal') | strcmp(target_field,'MFL') | strcmp(target_field,'FP')));
-% 
-% seeg_temporal_indices = find([hasData_field{:}] & strcmp(outcome_field,'good')...
-%     & strcmp(implant_field,'SEEG') & (strcmp(target_field,'Temporal') | strcmp(target_field,'MTL')));
-% seeg_frontal_indices = find([hasData_field{:}] & strcmp(outcome_field,'good')...
-%     & strcmp(implant_field,'SEEG') & (strcmp(target_field,'Frontal') | strcmp(target_field,'MFL') | strcmp(target_field,'FP')));
+for pt = 1:length(seeg_patients)
+    adj_matrix = seeg_patients(pt).conn(1).data;
+    res_bin = zeros(length(seeg_patients(pt).roi),1)
+    res_bin(seeg_patients(pt).resect) = 1;
+    final_elec_matrix = [seeg_patients(pt).coords,res_bin,ones(size(seeg_patients(pt).coords,1),1)];
+    dlmwrite('render_elecs.node',final_elec_matrix,'delimiter',' ','precision',5)
+    BrainNet_MapCfg('BrainMesh_ICBM152_smoothed.nv','render_elecs.node','ecog_seeg_render_2.mat',sprintf('output/render/elecs_ident_%s.jpg',seeg_patients(pt).patientID))
+    delete render_elecs.node
+end   
+%% 2A. Anatomical targets 
 
-[ECoG_top_regions, ECoG_plot_data, ECoG_total_elecs, ECoG_loc_matrix] = rank_anatomical_targets({ecog_patients.patientID},{ecog_patients.roi},...
-    {ecog_patients.laterality}, all_inds, all_locs,'ECoG','Temporal',lobe_table);
+[ECoG_top_regions, ECoG_plot_data, ECoG_total_elecs, ECoG_loc_matrix, ECoG_bilat_score, ECoG_ipsi_focal] = ...
+    rank_anatomical_targets({ecog_patients.patientID},{ecog_patients.roi},...
+    {ecog_patients.laterality},{ecog_patients.target}, all_inds, all_locs,lobe_table);
 
-[SEEG_top_regions, SEEG_plot_data, SEEG_total_elecs, SEEG_loc_matrix] = rank_anatomical_targets({seeg_patients.patientID},{seeg_patients.roi},...
-    {seeg_patients.laterality}, all_inds, all_locs,'ECoG','Frontal',lobe_table);
+[SEEG_top_regions, SEEG_plot_data, SEEG_total_elecs, SEEG_loc_matrix, SEEG_bilat_score, SEEG_ipsi_focal] = ...
+    rank_anatomical_targets({seeg_patients.patientID},{seeg_patients.roi},...
+    {seeg_patients.laterality},{seeg_patients.target}, all_inds, all_locs,lobe_table);
 
 % this needs some small fixes
 figure(1);clf;
@@ -47,8 +67,6 @@ set(fig,'defaultAxesTickLabelInterpreter','none');
 subplot(1,2,1)
 plotdata1 = ECoG_plot_data(1:15)./ECoG_total_elecs;
 bh1 = bar(1:numel(plotdata1),diag(plotdata1),'stacked','FaceColor', color1);
-bh1(13).FaceColor = color2; 
-bh1(14).FaceColor = color2; % contralateral coloration
 ylabel('Fraction of total electrodes')
 title('Anatomical distribution of ECoG patients');
 set(gca,'xtick',(1:15),'xticklabel',ECoG_top_regions(1:15));
@@ -57,11 +75,9 @@ xtickangle(45);
 subplot(1,2,2)
 plotdata2 = SEEG_plot_data(1:15)./SEEG_total_elecs;
 bh2 = bar(1:numel(plotdata2),diag(plotdata2),'stacked','FaceColor', color1);
-bh2(5).FaceColor = color2; % contralateral coloration
-bh2(4).FaceColor = color2; % contralateral coloration
-bh2(10).FaceColor = color2;
+bh2(6).FaceColor = color2;
+bh2(9).FaceColor = color2;
 bh2(13).FaceColor = color2;
-bh2(12).FaceColor = color2;
 bh2(15).FaceColor = color2; % contralateral coloration
 title('Anatomical distribution of SEEG patients');
 set(gca,'xtick',(1:15),'xticklabel',SEEG_top_regions(1:15));
@@ -76,6 +92,7 @@ ylim([0, 0.11])
 % 3: interhemispheric
 % 4: WM
 
+% quantify intra/interlobar/interhemispheric/wm for ECoG
 for pt = 1:length(ECoG_loc_matrix)
     loc_vec = ECoG_loc_matrix(pt).data(:);
     ECoG_frac_intralobar(pt,1) = sum(loc_vec==1)./sum(loc_vec~=4);
@@ -84,6 +101,7 @@ for pt = 1:length(ECoG_loc_matrix)
     ECoG_frac_WM(pt,1) = sum(loc_vec==4)./length(loc_vec);
 end
 
+% quantify intra/interlobar/interhemispheric/wm for ECoG
 for pt = 1:length(SEEG_loc_matrix)
     loc_vec = SEEG_loc_matrix(pt).data(:);
     SEEG_frac_intralobar(pt,1) = sum(loc_vec==1)./sum(loc_vec~=4);
@@ -92,15 +110,28 @@ for pt = 1:length(SEEG_loc_matrix)
     SEEG_frac_WM(pt,1) = sum(loc_vec==4)./length(loc_vec);
 end
 
+% get p values for comparing ECoG/SEEG intra/interlobar/interhemis/wm
 [p1, h1, stats1] = ranksum(ECoG_frac_intralobar,SEEG_frac_intralobar)
 [p2, h2, stats2]  = ranksum(ECoG_frac_interlobar,SEEG_frac_interlobar)
 [p3, h3, stats3]  = ranksum(ECoG_frac_interhemis,SEEG_frac_interhemis)
 [p4, h4, stats4]  = ranksum(ECoG_frac_WM,SEEG_frac_WM)
+
+e1 = mean(ECoG_frac_intralobar);
+e2 = mean(ECoG_frac_interlobar);
+e3 = mean(ECoG_frac_interhemis);
+
+s1 = mean(SEEG_frac_intralobar);
+s2 = mean(SEEG_frac_interlobar);
+s3 = mean(SEEG_frac_interhemis);
+
+p5 = chi2Tests([e1,e2,e3;s1,s2,s3])
+
 % need to put GM/WM in table
 
 [p1, p2, p3, p4]
 
 figure(1);clf
+hold on
 % need to put in x labels, legend, p val bars
 boxplot([[ECoG_frac_intralobar;NaN*ones(6,1)],[SEEG_frac_intralobar],...
     [ECoG_frac_interlobar;NaN*ones(6,1)],[SEEG_frac_interlobar],...
@@ -113,6 +144,32 @@ for j=1:length(h)
 end
 legend('SEEG','ECoG','Location','NorthEast')
 ylim([-0.1,1])
+hold off
+
+% fig 2
+figure(2);clf;
+subplot(1,2,1)
+hold on
+boxplot([[ECoG_ipsi_focal';NaN*ones(6,1)],SEEG_ipsi_focal']);
+h = findobj(gca,'Tag','Box');
+set(gca,'xtick',[1.5:2:5.5],'xticklabel',{'Intralobar','Interlobar','Interhemispheric'});
+colors = [color2; color1];
+for j=1:length(h)
+    patch(get(h(j),'XData'),get(h(j),'YData'),colors(j,:),'FaceAlpha',.5);
+end
+legend('SEEG','ECoG','Location','NorthEast')
+hold off
+subplot(1,2,2)
+hold on
+boxplot([[ECoG_bilat_score';NaN*ones(6,1)],SEEG_bilat_score']);
+h = findobj(gca,'Tag','Box');
+set(gca,'xtick',[1.5:2:5.5],'xticklabel',{'Intralobar','Interlobar','Interhemispheric'});
+colors = [color2; color1];
+for j=1:length(h)
+    patch(get(h(j),'XData'),get(h(j),'YData'),colors(j,:),'FaceAlpha',.5);
+end
+legend('SEEG','ECoG','Location','NorthEast')
+hold off
 
 
 %% 2B. Interelectrode distance comparison
@@ -334,28 +391,9 @@ mean(seeg_pc_all(:,3))
 [ecog_str_D_rs] = compute_distinguishability({ecog_patients.conn},{ecog_patients.resect},'node_strength',0, {ecog_patients.roi});
 [seeg_str_D_rs] = compute_distinguishability({seeg_patients.conn},{seeg_patients.resect},'node_strength',0, {seeg_patients.roi});
 
-[ecog_bc_D_rs] = compute_distinguishability({ecog_patients.conn},{ecog_patients.resect},'betweenness_centrality',0, {ecog_patients.roi});
-[seeg_bc_D_rs] = compute_distinguishability({seeg_patients.conn},{seeg_patients.resect},'betweenness_centrality',0, {seeg_patients.roi});
-
-[ecog_pc_D_rs] = compute_distinguishability({ecog_patients.conn},{ecog_patients.resect},'participation_coefficient',0, {ecog_patients.roi});
-[seeg_pc_D_rs] = compute_distinguishability({seeg_patients.conn},{seeg_patients.resect},'participation_coefficient',0, {seeg_patients.roi});
-
-[p1, h, stats] = ranksum(ecog_str_D_rs(:,3),seeg_str_D_rs(:,3))
-[p2, h, stats] = ranksum(ecog_bc_D_rs(:,3),seeg_bc_D_rs(:,3))
-[p3, h, stats] = ranksum(ecog_pc_D_rs(:,3),seeg_pc_D_rs(:,3))
 %%
 [ecog_str_D_rs_no_WM] = compute_distinguishability({ecog_patients.conn},{ecog_patients.resect},'node_strength',1, {ecog_patients.roi});
 [seeg_str_D_rs_no_WM] = compute_distinguishability({seeg_patients.conn},{seeg_patients.resect},'node_strength',1, {seeg_patients.roi});
-
-[ecog_bc_D_rs_no_WM] = compute_distinguishability({ecog_patients.conn},{ecog_patients.resect},'betweenness_centrality',1, {ecog_patients.roi});
-[seeg_bc_D_rs_no_WM] = compute_distinguishability({seeg_patients.conn},{seeg_patients.resect},'betweenness_centrality',1, {seeg_patients.roi});
-
-[ecog_pc_D_rs_no_WM] = compute_distinguishability({ecog_patients.conn},{ecog_patients.resect},'participation_coefficient',1, {ecog_patients.roi});
-[seeg_pc_D_rs_no_WM] = compute_distinguishability({seeg_patients.conn},{seeg_patients.resect},'participation_coefficient',1, {seeg_patients.roi});
-
-p4 = ranksum(ecog_str_D_rs_no_WM(:,3),seeg_str_D_rs_no_WM(:,3))
-p5 = ranksum(ecog_bc_D_rs_no_WM(:,3),seeg_bc_D_rs_no_WM(:,3))
-p6 = ranksum(ecog_pc_D_rs_no_WM(:,3),seeg_pc_D_rs_no_WM(:,3))
 
 %% reduce to min ROI
 [min_roi_ecog] = modify_networks({ecog_patients.conn}, {ecog_patients.coords}, {ecog_patients.roi}, {ecog_patients.resect}, 'min_ROI');
@@ -364,15 +402,6 @@ p6 = ranksum(ecog_pc_D_rs_no_WM(:,3),seeg_pc_D_rs_no_WM(:,3))
 [ecog_str_D_rs_min_ROI] = compute_distinguishability({min_roi_ecog.conn}, {min_roi_ecog.resect},'node_strength',0, {ecog_patients.roi});
 [seeg_str_D_rs_min_ROI] = compute_distinguishability({min_roi_seeg.conn}, {min_roi_seeg.resect},'node_strength',0, {seeg_patients.roi});
 
-[ecog_bc_D_rs_min_ROI] = compute_distinguishability({min_roi_ecog.conn}, {min_roi_ecog.resect},'betweenness_centrality',0, {ecog_patients.roi});
-[seeg_bc_D_rs_min_ROI] = compute_distinguishability({min_roi_seeg.conn}, {min_roi_seeg.resect},'betweenness_centrality',0, {seeg_patients.roi});
-
-[ecog_pc_D_rs_min_ROI] = compute_distinguishability({min_roi_ecog.conn}, {min_roi_ecog.resect},'participation_coefficient',0, {ecog_patients.roi});
-[seeg_pc_D_rs_min_ROI] = compute_distinguishability({min_roi_seeg.conn}, {min_roi_seeg.resect},'participation_coefficient',0, {seeg_patients.roi});
-
-p7 = ranksum(ecog_str_D_rs_min_ROI(:,3),seeg_str_D_rs_min_ROI(:,3))
-p8 = ranksum(ecog_bc_D_rs_min_ROI(:,3),seeg_bc_D_rs_min_ROI(:,3))
-p9 = ranksum(ecog_pc_D_rs_min_ROI(:,3),seeg_pc_D_rs_min_ROI(:,3))
 
 %%
 freq = 3;
@@ -384,11 +413,6 @@ boxplot([[ecog_str_D_rs(:,freq);NaN*ones(6,1)],seeg_str_D_rs(:,freq),...
     [ecog_str_D_rs_no_WM(:,freq);NaN*ones(6,1)],seeg_str_D_rs_no_WM(:,freq),...
     [ecog_str_D_rs_min_ROI(:,freq);NaN*ones(6,1)],seeg_str_D_rs_min_ROI(:,freq)])
 
-subplot(1,2,2)
-title('participation coefficient')
-boxplot([[ecog_pc_D_rs(:,freq);NaN*ones(6,1)],seeg_pc_D_rs(:,freq),...
-    [ecog_pc_D_rs_no_WM(:,freq);NaN*ones(6,1)],seeg_pc_D_rs_no_WM(:,freq),...
-    [ecog_pc_D_rs_min_ROI(:,freq);NaN*ones(6,1)],seeg_pc_D_rs_min_ROI(:,freq)])
 
 %% regress out distance from connectivity matrices and transform from 0-1
 % do a single regression across all patients
@@ -401,7 +425,7 @@ boxplot([[ecog_pc_D_rs(:,freq);NaN*ones(6,1)],seeg_pc_D_rs(:,freq),...
 [ecog_str_D_rs_distreg] = compute_distinguishability({conn_data_ecog.conn}, {no_wm_ecog.resect},'node_strength',0, {no_wm_ecog.roi});
 [seeg_str_D_rs_distreg] = compute_distinguishability({conn_data_seeg.conn}, {no_wm_seeg.resect},'node_strength',0, {no_wm_seeg.roi});
 
-p7 = ranksum(ecog_str_D_rs_distreg(:,3),seeg_str_D_rs_distreg(:,3))
+%p7 = ranksum(ecog_str_D_rs_distreg(:,3),seeg_str_D_rs_distreg(:,3))
 % p9 = ranksum(ecog_pc_D_rs_distreg(:,3),seeg_pc_D_rs_distreg(:,3))
 
 %% distance correction plot
@@ -442,9 +466,9 @@ ylim([-0.1 1.3])
 % find which patients are in top third, middle third, bottom third of seeg
 % in each category -> network integration, which target, surgery type
 y = quantile(seeg_str_D_rs_no_WM(:,3),[0.33 0.66]);
-better_inds = find(seeg_str_D_rs_no_WM(:,3)>0.6407);
-medium_inds = find((seeg_str_D_rs_no_WM(:,3)<0.6407).*(seeg_str_D_rs_no_WM(:,3)>0.4510));
-worse_inds = find(seeg_str_D_rs_no_WM(:,3)<0.4510);
+better_inds = find(seeg_str_D_rs_no_WM(:,3)>y(2));
+medium_inds = find((seeg_str_D_rs_no_WM(:,3)<y(2)).*(seeg_str_D_rs_no_WM(:,3)>y(1)));
+worse_inds = find(seeg_str_D_rs_no_WM(:,3)<y(1));
 
 a1 = seeg_pc_D_rs_no_WM(better_inds,3)
 a2 = seeg_pc_D_rs_no_WM(medium_inds,3)
@@ -464,6 +488,14 @@ c3 = SEEG_frac_interlobar(worse_inds)
 d1 = SEEG_frac_interhemis(better_inds)
 d2 = SEEG_frac_interhemis(medium_inds)
 d3 = SEEG_frac_interhemis(worse_inds)
+
+f1 = SEEG_bilat_score(better_inds)
+f2 = SEEG_bilat_score(medium_inds)
+f3 = SEEG_bilat_score(worse_inds)
+
+g1 = SEEG_ipsi_focal(better_inds)
+g2 = SEEG_ipsi_focal(medium_inds)
+g3 = SEEG_ipsi_focal(worse_inds)
 
 color3 = [78 172 91]/255;
 beige = [254, 249, 213]./255;
@@ -503,9 +535,17 @@ boxplot([e1,e2,e3])
 [p2, h2, stats2] = ranksum(b1,b3)
 [p3, h3, stats3] = ranksum(b2,b3)
 
-[p1, h1, stats1] = ranksum(d1,d2)
-[p2, h2, stats2] = ranksum(d1,d3)
-[p3, h3, stats3] = ranksum(d2,d3)
+[p4, h1, stats1] = ranksum(d1,d2)
+[p5, h2, stats2] = ranksum(d1,d3)
+[p6, h3, stats3] = ranksum(d2,d3)
+
+[p7, h1, stats1] = ranksum(f1,f2)
+[p8, h2, stats2] = ranksum(f1,f3)
+[p9, h3, stats3] = ranksum(f2,f3)
+
+[p10, h1, stats1] = ranksum(g1,g2)
+[p11, h2, stats2] = ranksum(g1,g3)
+[p12, h3, stats3] = ranksum(g2,g3)
 
 % do an analysis of does the EZ have high or low betweenness centrality
 % compared to the rest of the network
@@ -522,11 +562,6 @@ ylim([0 30])
 [p1,h1,stats1] = ranksum(num_resect_s(worse_inds)',num_resect_s(medium_inds)')
 [p2,h2,stats2] = ranksum(num_resect_s(medium_inds)',num_resect_s(better_inds)')
 [p3,h3,stats3] = ranksum(num_resect_s(worse_inds)',num_resect_s(better_inds)')
-
-%% do chi square stuff
-% outcome
-% surgical type
-% primary target
 
 %% sub-analysis by outcome
 ecog_good_inds = [];
@@ -567,23 +602,23 @@ boxplot([[ecog_str_D_rs(ecog_poor_inds,freq);NaN*ones(3,1)],seeg_str_D_rs(seeg_p
     [ecog_str_D_rs_distreg(ecog_poor_inds,freq);NaN*ones(3,1)],seeg_str_D_rs_distreg(seeg_poor_inds,freq)])
 
 
-%% need hup082 adjacency matrix and 1D electrode strength and D-RS plot
+%% Hup082 adjacency matrix and 1D electrode strength and D-RS plot
 load color_bar
 
 figure(1);clf
-imagesc(ecog_patients(7).conn(3).data)
+imagesc(ecog_patients(10).conn(3).data)
 colormap(color_bar)
 colorbar
 
 figure(2);clf
-imagesc(sum(ecog_patients(7).conn(3).data,2))
+imagesc(sum(ecog_patients(10).conn(3).data,2))
 colormap(color_bar)
 
 % make scatter for resected
-res_bin = zeros(length(ecog_patients(7).roi),1);
-res_bin(ecog_patients(7).resect) = 1;
+res_bin = zeros(length(ecog_patients(10).roi),1);
+res_bin(ecog_patients(10).resect) = 1;
 
-nodestr = sum(ecog_patients(7).conn(3).data);
+nodestr = sum(ecog_patients(10).conn(3).data);
 
 figure(3);clf;
 hold on
@@ -603,3 +638,7 @@ for pt = 1:length(seeg_patients)
     num_WM_s(pt) = sum(seeg_patients(pt).roi==9171);
     num_resect_s(pt) = length(seeg_patients(pt).resect);
 end
+
+[mean(num_nodes), std(num_nodes), mean(num_nodes_s), std(num_nodes_s), ranksum(num_nodes,num_nodes_s);
+ mean(num_WM),    std(num_WM),    mean(num_WM_s),    std(num_WM_s),    ranksum(num_WM,num_WM_s);
+ mean(num_resect),std(num_resect),mean(num_resect_s),std(num_resect_s),ranksum(num_resect,num_resect_s);]
